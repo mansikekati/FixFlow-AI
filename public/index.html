@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FixFlow AI – Debug, Learn & Grow</title>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2230;
+      --border:    #30363d;
+      --border2:   #21262d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --violet:    #a78bfa;
+      --violet2:   #7c3aed;
+      --teal:      #2dd4bf;
+      --teal2:     #0d9488;
+      --amber:     #fbbf24;
+      --red:       #f87171;
+      --green:     #4ade80;
+      --radius:    10px;
+      --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
+      --mono:      'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    a { color: var(--violet); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre {
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ─── Layout ───────────────────────────────────────────────────── */
+    .app-shell {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 56px 1fr;
+      min-height: 100vh;
+    }
+    @media (max-width: 768px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .sidebar.open { display: flex; position: fixed; inset: 56px 0 0 0; z-index: 100; }
+    }
+
+    /* ─── Topbar ───────────────────────────────────────────────────── */
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -.3px;
+    }
+    .topbar-logo .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--violet2), var(--teal2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .topbar-logo .logo-text { color: var(--text); }
+    .topbar-logo .logo-ai { color: var(--violet); }
+    .topbar-spacer { flex: 1; }
+    .mode-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--surface2);
+    }
+    .mode-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+    }
+    .mode-badge.live .dot { background: var(--green); }
+    .mode-badge.live { border-color: #2a3d2a; color: var(--green); }
+    .hamburger {
+      display: none;
+      background: none; border: none;
+      color: var(--text); font-size: 22px; cursor: pointer;
+      padding: 4px 8px;
+    }
+    @media (max-width: 768px) { .hamburger { display: block; } }
+
+    /* ─── Sidebar ──────────────────────────────────────────────────── */
+    .sidebar {
+      grid-row: 2;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow-y: auto;
+    }
+    .sidebar-section {
+      padding: 6px 16px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px;
+      border-radius: 0;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 14px;
+      border: none; background: none; width: 100%; text-align: left;
+      transition: background .15s, color .15s;
+      position: relative;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active {
+      color: var(--violet);
+      background: rgba(167,139,250,.08);
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute; left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--violet);
+      border-radius: 0 2px 2px 0;
+    }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--violet2);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 1px 6px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    /* ─── Main ─────────────────────────────────────────────────────── */
+    .main {
+      grid-row: 2;
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+    @media (max-width: 768px) {
+      .main { padding: 16px; }
+    }
+
+    /* ─── Panels ───────────────────────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ─── Page Heading ─────────────────────────────────────────────── */
+    .page-header { margin-bottom: 24px; }
+    .page-header h1 {
+      font-size: 22px; font-weight: 700; margin-bottom: 4px;
+    }
+    .page-header p { color: var(--muted); font-size: 14px; }
+
+    /* ─── Cards ────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .ct-icon { color: var(--violet); font-size: 15px; }
+
+    /* ─── Form Elements ────────────────────────────────────────────── */
+    label { font-size: 13px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 6px; }
+    select, input[type="text"], textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    select:focus, input[type="text"]:focus, textarea:focus {
+      border-color: var(--violet);
+    }
+    select option { background: var(--surface2); }
+    textarea.code-area {
+      font-family: var(--mono);
+      font-size: 13px;
+      min-height: 160px;
+      resize: vertical;
+      line-height: 1.5;
+      tab-size: 4;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { margin-bottom: 16px; }
+
+    /* ─── Buttons ──────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--violet2), #5b21b6);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: .88; }
+    .btn-teal {
+      background: linear-gradient(135deg, var(--teal2), #0f766e);
+      color: #fff;
+    }
+    .btn-teal:hover:not(:disabled) { opacity: .88; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--surface2); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-icon { padding: 7px 9px; font-size: 14px; }
+
+    /* ─── Analyze Button Row ───────────────────────────────────────── */
+    .analyze-row {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .analyze-row .hint { font-size: 12px; color: var(--muted); }
+
+    /* ─── Loading State ────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Alert / Message ──────────────────────────────────────────── */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 7px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .alert-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); color: #fca5a5; }
+    .alert-info  { background: rgba(167,139,250,.08); border: 1px solid rgba(167,139,250,.25); color: var(--violet); }
+    .alert-demo  { background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.25); color: var(--amber); }
+    .alert-success { background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.25); color: var(--green); }
+
+    /* ─── Results Area ─────────────────────────────────────────────── */
+    #results-area { margin-top: 24px; }
+
+    /* ─── Error Type Badge ─────────────────────────────────────────── */
+    .error-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(248,113,113,.12);
+      border: 1px solid rgba(248,113,113,.3);
+      color: var(--red);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 13px; font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    /* ─── Code Blocks ──────────────────────────────────────────────── */
+    .code-block-wrapper {
+      position: relative;
+      border-radius: 7px;
+      overflow: hidden;
+      background: #0d1117;
+      border: 1px solid var(--border);
+    }
+    .code-block-header {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border2);
+      padding: 8px 14px;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .code-block-header .lang-label { font-weight: 600; letter-spacing: .4px; text-transform: uppercase; }
+    .code-block-body {
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre;
+      color: #cdd9e5;
+    }
+    .highlight-line { background: rgba(248,113,113,.12); display: block; margin: 0 -16px; padding: 0 16px; }
+
+    /* ─── Before/After ─────────────────────────────────────────────── */
+    .before-after-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 700px) { .before-after-grid { grid-template-columns: 1fr; } }
+    .before-after-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      padding: 5px 10px; border-radius: 4px 4px 0 0;
+      display: inline-block; margin-bottom: -1px;
+    }
+    .label-before { background: rgba(248,113,113,.15); color: var(--red); }
+    .label-after  { background: rgba(45,212,191,.12); color: var(--teal); }
+
+    /* ─── Quiz ─────────────────────────────────────────────────────── */
+    .quiz-options { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .quiz-option {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      cursor: pointer;
+      background: var(--surface2);
+      font-size: 14px;
+      transition: border-color .15s, background .15s;
+    }
+    .quiz-option:hover:not(.disabled) { border-color: var(--violet); }
+    .quiz-option.selected-correct { border-color: var(--green); background: rgba(74,222,128,.07); }
+    .quiz-option.selected-wrong  { border-color: var(--red);   background: rgba(248,113,113,.07); }
+    .quiz-option.reveal-correct  { border-color: var(--green); background: rgba(74,222,128,.05); }
+    .quiz-option.disabled { cursor: not-allowed; }
+    .quiz-option-key {
+      width: 24px; height: 24px; min-width: 24px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+    }
+    .quiz-option.selected-correct .quiz-option-key { background: var(--green); color: #000; border-color: var(--green); }
+    .quiz-option.selected-wrong  .quiz-option-key { background: var(--red); color: #fff; border-color: var(--red); }
+    .quiz-option.reveal-correct  .quiz-option-key { background: var(--green); color: #000; border-color: var(--green); }
+    #quiz-feedback-text {
+      margin-top: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 12px 16px;
+      border-radius: 7px;
+    }
+
+    /* ─── History ──────────────────────────────────────────────────── */
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .history-item {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .history-item:hover { border-color: var(--violet); }
+    .history-item-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .history-lang {
+      font-size: 11px; font-weight: 600; letter-spacing: .5px;
+      text-transform: uppercase;
+      padding: 2px 8px; border-radius: 10px;
+      background: rgba(167,139,250,.12); color: var(--violet);
+    }
+    .history-time { font-size: 11px; color: var(--muted); }
+    .history-error { font-size: 14px; font-weight: 600; color: var(--red); margin-bottom: 3px; }
+    .history-concept { font-size: 12px; color: var(--muted); }
+    .history-quiz-badge {
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 10px;
+      margin-left: 8px;
+    }
+    .quiz-pass { background: rgba(74,222,128,.15); color: var(--green); }
+    .quiz-fail { background: rgba(248,113,113,.12); color: var(--red); }
+
+    /* ─── Empty State ──────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .empty-state .es-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .empty-state p { font-size: 13px; max-width: 340px; margin: 0 auto; }
+
+    /* ─── Examples Panel ───────────────────────────────────────────── */
+    .examples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .example-card {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color .15s, transform .1s;
+    }
+    .example-card:hover {
+      border-color: var(--violet);
+      transform: translateY(-2px);
+    }
+    .example-lang-badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 600; letter-spacing: .5px;
+      text-transform: uppercase;
+      padding: 2px 8px; border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    .example-lang-badge.py { background: rgba(45,212,191,.12); color: var(--teal); }
+    .example-lang-badge.js { background: rgba(251,191,36,.1); color: var(--amber); }
+    .example-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .example-card p  { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .example-snippet {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: #0d1117;
+      border: 1px solid var(--border2);
+      border-radius: 5px;
+      padding: 8px 10px;
+      color: #adbac7;
+      overflow: hidden;
+      max-height: 80px;
+      white-space: pre;
+    }
+
+    /* ─── Stats Row ────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .stat-card.violet .stat-value { color: var(--violet); }
+    .stat-card.teal   .stat-value { color: var(--teal); }
+    .stat-card.green  .stat-value { color: var(--green); }
+
+    /* ─── Divider ──────────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    /* ─── Concept Icon ─────────────────────────────────────────────── */
+    .concept-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(45,212,191,.1); color: var(--teal);
+      border: 1px solid rgba(45,212,191,.25);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 13px; font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    /* ─── IBM Hackathon Banner ─────────────────────────────────────── */
+    .ibm-banner {
+      background: linear-gradient(90deg, rgba(124,92,216,.15), rgba(13,148,136,.1));
+      border: 1px solid rgba(167,139,250,.2);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px;
+    }
+    .ibm-banner-text { font-size: 13px; color: var(--muted); }
+    .ibm-banner-text strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<div class="app-shell" id="app">
+
+  <!-- ─── Topbar ─────────────────────────────────────── -->
+  <header class="topbar">
+    <button class="hamburger" id="hamburger-btn" aria-label="Menu">☰</button>
+    <div class="topbar-logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">FixFlow <span class="logo-ai">AI</span></span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="mode-badge" id="mode-badge">
+      <div class="dot"></div>
+      <span id="mode-label">Checking…</span>
+    </div>
+  </header>
+
+  <!-- ─── Sidebar ────────────────────────────────────── -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">Workspace</div>
+    <button class="nav-item active" data-panel="debug">
+      <span class="nav-icon">🐛</span> Debug My Code
+    </button>
+    <button class="nav-item" data-panel="examples">
+      <span class="nav-icon">📦</span> Example Playground
+    </button>
+    <div class="sidebar-section" style="margin-top:12px;">Learning</div>
+    <button class="nav-item" data-panel="history">
+      <span class="nav-icon">📖</span> History
+      <span class="nav-badge" id="history-badge">0</span>
+    </button>
+    <div style="margin-top: auto; padding: 20px 16px 0;">
+      <div style="font-size:11px; color: var(--muted); line-height:1.5;">
+        FixFlow AI<br>
+        IBM User Group Nagpur<br>
+        Hackathon — Challenge 1
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── Main Content ───────────────────────────────── -->
+  <main class="main" id="main-content">
+
+    <!-- ══════════════════════════════════════════════════
+         PANEL: Debug
+    ══════════════════════════════════════════════════ -->
+    <div class="panel active" id="panel-debug">
+
+      <div class="ibm-banner">
+        <span style="font-size:22px;">⚡</span>
+        <div class="ibm-banner-text">
+          <strong>FixFlow AI</strong> — Paste your broken code, describe the error, and get an AI-powered explanation, fix, concept lesson, and quiz. <em>Learn by doing.</em>
+        </div>
+      </div>
+
+      <div class="page-header">
+        <h1>Debug My Code</h1>
+        <p>Paste your code, select a language, and describe the error you're seeing.</p>
+      </div>
+
+      <!-- Input Card -->
+      <div class="card">
+        <div class="card-title"><span class="ct-icon">✏️</span> Code Input</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="lang-select">Programming Language</label>
+            <select id="lang-select">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="java">Java</option>
+              <option value="typescript">TypeScript</option>
+              <option value="cpp">C++</option>
+              <option value="c">C</option>
+              <option value="php">PHP</option>
+              <option value="ruby">Ruby</option>
+              <option value="go">Go</option>
+              <option value="rust">Rust</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="error-input">Error Message</label>
+            <input type="text" id="error-input" placeholder="e.g. NameError: name 'x' is not defined" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="code-input">Your Code</label>
+          <textarea class="code-area" id="code-input" placeholder="# Paste your code here…
+def greet():
+    print('Hello!')
+
+greet()" spellcheck="false"></textarea>
+        </div>
+        <div id="input-error" class="alert alert-error" style="display:none;"></div>
+        <div class="analyze-row">
+          <button class="btn btn-primary" id="analyze-btn">
+            <span id="analyze-btn-icon">⚡</span>
+            <span id="analyze-btn-text">Analyze &amp; Debug</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="clear-btn">✕ Clear</button>
+          <span class="hint" id="demo-hint">Demo mode active — no API key required</span>
+        </div>
+      </div>
+
+      <!-- Results Area (hidden until analysis) -->
+      <div id="results-area" style="display:none;">
+
+        <!-- Demo notice -->
+        <div id="demo-notice" class="alert alert-demo" style="display:none;">
+          🎭 <strong>Demo Mode:</strong> This is a realistic sample diagnosis — not a live AI response. Configure <code>WATSONX_API_KEY</code> and <code>WATSONX_PROJECT_ID</code> in <code>.env</code> to enable live analysis.
+        </div>
+
+        <!-- Diagnosis Card -->
+        <div class="card">
+          <div class="card-title"><span class="ct-icon">🔍</span> AI Diagnosis</div>
+          <div class="error-badge">⚠ <span id="res-error-type">NameError</span></div>
+          <p id="res-explanation" style="font-size:15px; line-height:1.7; margin-bottom:14px;"></p>
+          <div id="faulty-line-section" style="display:none;">
+            <label style="margin-bottom:8px;">Problematic line identified:</label>
+            <div class="code-block-wrapper">
+              <div class="code-block-header">
+                <span class="lang-label" id="faulty-line-lang">python</span>
+                <span style="color:var(--red); font-size:11px;">⚠ Issue here</span>
+              </div>
+              <div class="code-block-body" id="faulty-line-code"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Before & After Card -->
+        <div class="card">
+          <div class="card-title"><span class="ct-icon">↔️</span> Before &amp; After</div>
+          <div class="before-after-grid">
+            <div>
+              <span class="before-after-label label-before">✗ Before (original)</span>
+              <div class="code-block-wrapper">
+                <div class="code-block-header">
+                  <span class="lang-label" id="before-lang">python</span>
+                  <button class="btn btn-ghost btn-sm btn-icon" onclick="copyCode('before-code')" title="Copy">⎘</button>
+                </div>
+                <div class="code-block-body" id="before-code"></div>
+              </div>
+            </div>
+            <div>
+              <span class="before-after-label label-after">✓ After (fixed)</span>
+              <div class="code-block-wrapper">
+                <div class="code-block-header">
+                  <span class="lang-label" id="after-lang">python</span>
+                  <button class="btn btn-ghost btn-sm btn-icon" onclick="copyCode('after-code')" title="Copy">⎘</button>
+                </div>
+                <div class="code-block-body" id="after-code"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teach Me Card -->
+        <div class="card">
+          <div class="card-title"><span class="ct-icon">📚</span> Teach Me</div>
+          <div class="concept-pill">💡 <span id="res-concept-title">Concept</span></div>
+          <p id="res-concept-explanation" style="font-size:14px; line-height:1.75;"></p>
+        </div>
+
+        <!-- Quiz Card -->
+        <div class="card" id="quiz-card">
+          <div class="card-title"><span class="ct-icon">🎯</span> Test My Understanding</div>
+          <p id="quiz-question-text" style="font-size:15px; font-weight:600; margin-bottom:4px; line-height:1.6;"></p>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">Choose the best answer:</p>
+          <div class="quiz-options" id="quiz-options-list"></div>
+          <div id="quiz-feedback-text" style="display:none;"></div>
+          <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" id="quiz-retry-btn" style="display:none;" onclick="resetQuiz()">↩ Try Again</button>
+            <button class="btn btn-teal btn-sm" id="quiz-next-btn" style="display:none;" onclick="scrollToTop()">✓ Done — Back to Top</button>
+          </div>
+        </div>
+
+      </div><!-- /results-area -->
+    </div><!-- /panel-debug -->
+
+
+    <!-- ══════════════════════════════════════════════════
+         PANEL: Examples
+    ══════════════════════════════════════════════════ -->
+    <div class="panel" id="panel-examples">
+      <div class="page-header">
+        <h1>Example Playground</h1>
+        <p>Try these preloaded examples — they work in both Demo and Live modes. Click any card to load it into the debugger.</p>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <span style="font-size:13px; color:var(--muted);">Filter: </span>
+        <button class="btn btn-ghost btn-sm" onclick="filterExamples('all')" id="filter-all" style="margin:2px;">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="filterExamples('python')" id="filter-python" style="margin:2px;">Python</button>
+        <button class="btn btn-ghost btn-sm" onclick="filterExamples('javascript')" id="filter-javascript" style="margin:2px;">JavaScript</button>
+      </div>
+
+      <div class="examples-grid" id="examples-grid"></div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════
+         PANEL: History
+    ══════════════════════════════════════════════════ -->
+    <div class="panel" id="panel-history">
+      <div class="page-header">
+        <h1>Learning History</h1>
+        <p>A record of everything you've debugged and every quiz you've taken this session.</p>
+      </div>
+
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card violet">
+          <div class="stat-value" id="stat-analyzed">0</div>
+          <div class="stat-label">Errors Analyzed</div>
+        </div>
+        <div class="stat-card teal">
+          <div class="stat-value" id="stat-quizzes">0</div>
+          <div class="stat-label">Quizzes Taken</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="stat-correct">0</div>
+          <div class="stat-label">Correct Answers</div>
+        </div>
+      </div>
+
+      <div id="history-empty" class="empty-state">
+        <div class="es-icon">📖</div>
+        <h3>No history yet</h3>
+        <p>Debug some code and take quizzes — your progress will appear here automatically.</p>
+      </div>
+
+      <div class="history-list" id="history-list" style="display:none;"></div>
+
+      <div style="margin-top: 20px; display:none;" id="clear-history-row">
+        <button class="btn btn-ghost btn-sm" onclick="clearHistory()">🗑 Clear History</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── Toast ──────────────────────────────────────────────────────────────── -->
+<div id="toast" style="
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; padding:10px 16px;
+  font-size:13px; color:var(--text);
+  box-shadow:0 4px 24px rgba(0,0,0,.4);
+  transform:translateY(80px); opacity:0;
+  transition:transform .25s, opacity .25s;
+  pointer-events:none;
+">Copied!</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  FixFlow AI — Frontend Logic
+// ════════════════════════════════════════════════════════
+
+// ─── State ───────────────────────────────────────────────
+const state = {
+  history: [],
+  currentResult: null,
+  quizAnswered: false,
+  statsAnalyzed: 0,
+  statsQuizzes: 0,
+  statsCorrect: 0,
+};
+
+// ─── Preloaded Examples ───────────────────────────────────
+const EXAMPLES = [
+  {
+    id: 'py-nameerror',
+    language: 'python',
+    title: 'NameError: Undefined Variable',
+    description: 'Calling a function before it is defined.',
+    errorMsg: "NameError: name 'greet' is not defined",
+    code: `greet()\n\ndef greet():\n    print("Hello, World!")`,
+    snippet: `greet()\n\ndef greet():\n    print("Hello, World!")`,
+  },
+  {
+    id: 'py-indent',
+    language: 'python',
+    title: 'IndentationError: Wrong Indent',
+    description: 'A return statement with incorrect indentation.',
+    errorMsg: 'IndentationError: unexpected indent',
+    code: `def add(a, b):\n    result = a + b\n        return result\n\nprint(add(3, 4))`,
+    snippet: `def add(a, b):\n    result = a + b\n        return result`,
+  },
+  {
+    id: 'py-typeerror',
+    language: 'python',
+    title: 'TypeError: Wrong Types',
+    description: 'Adding a string and an integer without conversion.',
+    errorMsg: "TypeError: can only concatenate str (not 'int') to str",
+    code: `name = "Age: "\nage = 25\nprint(name + age)`,
+    snippet: `name = "Age: "\nage = 25\nprint(name + age)`,
+  },
+  {
+    id: 'py-keyerror',
+    language: 'python',
+    title: 'KeyError: Missing Dictionary Key',
+    description: 'Accessing a key that does not exist in a dict.',
+    errorMsg: "KeyError: 'email'",
+    code: `user = {'name': 'Alice', 'age': 30}\nprint(user['email'])`,
+    snippet: `user = {'name': 'Alice', 'age': 30}\nprint(user['email'])`,
+  },
+  {
+    id: 'js-typeerror',
+    language: 'javascript',
+    title: 'TypeError: Cannot Read Property',
+    description: "Reading .length on an undefined variable.",
+    errorMsg: "TypeError: Cannot read properties of undefined (reading 'length')",
+    code: `let items;\nconsole.log(items.length);`,
+    snippet: `let items;\nconsole.log(items.length);`,
+  },
+  {
+    id: 'js-syntax',
+    language: 'javascript',
+    title: 'SyntaxError: Missing Bracket',
+    description: 'A console.log with an unclosed parenthesis.',
+    errorMsg: 'SyntaxError: Unexpected end of input',
+    code: `function greet(name) {\n  console.log("Hello, " + name\n}\n\ngreet("Alice");`,
+    snippet: `function greet(name) {\n  console.log("Hello, " + name\n}`,
+  },
+  {
+    id: 'js-reference',
+    language: 'javascript',
+    title: 'ReferenceError: Variable Not Declared',
+    description: 'Using a variable that was never declared.',
+    errorMsg: "ReferenceError: counter is not defined",
+    code: `function increment() {\n  counter++;\n  return counter;\n}\n\nincrement();`,
+    snippet: `function increment() {\n  counter++;\n  return counter;\n}`,
+  },
+  {
+    id: 'js-rangeerror',
+    language: 'javascript',
+    title: 'RangeError: Maximum Call Stack',
+    description: 'A recursive function with no base case.',
+    errorMsg: 'RangeError: Maximum call stack size exceeded',
+    code: `function countdown(n) {\n  console.log(n);\n  countdown(n - 1);\n}\n\ncountdown(5);`,
+    snippet: `function countdown(n) {\n  console.log(n);\n  countdown(n - 1);\n}`,
+  },
+];
+
+// ─── Navigation ───────────────────────────────────────────
+function navigate(panelId) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const panel = document.getElementById('panel-' + panelId);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll(`.nav-item[data-panel="${panelId}"]`).forEach(n => n.classList.add('active'));
+  if (panelId === 'history') renderHistory();
+  // close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
+  btn.addEventListener('click', () => navigate(btn.dataset.panel));
+});
+
+document.getElementById('hamburger-btn').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+// ─── Check Server Mode ────────────────────────────────────
+async function checkMode() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const badge = document.getElementById('mode-badge');
+    const label = document.getElementById('mode-label');
+    const hint  = document.getElementById('demo-hint');
+    if (d.mode === 'live') {
+      badge.classList.add('live');
+      label.textContent = 'Live AI (watsonx)';
+      hint.style.display = 'none';
+    } else {
+      label.textContent = 'Demo Mode';
+      hint.style.display = 'inline';
+    }
+  } catch(e) {
+    document.getElementById('mode-label').textContent = 'Offline';
+  }
+}
+checkMode();
+
+// ─── Examples Panel ───────────────────────────────────────
+function renderExamples(filter = 'all') {
+  const grid = document.getElementById('examples-grid');
+  const shown = filter === 'all' ? EXAMPLES : EXAMPLES.filter(e => e.language === filter);
+  grid.innerHTML = shown.map(ex => `
+    <div class="example-card" onclick="loadExample('${ex.id}')">
+      <span class="example-lang-badge ${ex.language === 'python' ? 'py' : 'js'}">${ex.language}</span>
+      <h4>${ex.title}</h4>
+      <p>${ex.description}</p>
+      <div class="example-snippet">${escHtml(ex.snippet)}</div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); loadExample('${ex.id}')">Load &amp; Analyze →</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterExamples(f) {
+  renderExamples(f);
+}
+
+function loadExample(id) {
+  const ex = EXAMPLES.find(e => e.id === id);
+  if (!ex) return;
+  document.getElementById('lang-select').value = ex.language;
+  document.getElementById('code-input').value  = ex.code;
+  document.getElementById('error-input').value = ex.errorMsg;
+  navigate('debug');
+  document.getElementById('results-area').style.display = 'none';
+  // Scroll to top
+  document.getElementById('main-content').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+renderExamples();
+
+// ─── Analyze ──────────────────────────────────────────────
+const analyzeBtn  = document.getElementById('analyze-btn');
+const analyzeIcon = document.getElementById('analyze-btn-icon');
+const analyzeText = document.getElementById('analyze-btn-text');
+
+async function analyze() {
+  const language = document.getElementById('lang-select').value.trim();
+  const code     = document.getElementById('code-input').value;
+  const errorMsg = document.getElementById('error-input').value.trim();
+  const errDiv   = document.getElementById('input-error');
+
+  errDiv.style.display = 'none';
+
+  // Validate
+  if (!code || code.trim().length < 3) {
+    showInputError('Please paste your code (at least 3 characters).');
+    return;
+  }
+  if (!errorMsg) {
+    showInputError('Please describe the error message you received.');
+    return;
+  }
+
+  // Loading state
+  setLoading(true);
+  document.getElementById('results-area').style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language, code, errorMsg }),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      showInputError(data.error || 'Analysis failed. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    state.currentResult = { ...data, language, code, errorMsg, timestamp: Date.now() };
+    renderResults(state.currentResult);
+    addToHistory(state.currentResult);
+
+  } catch(e) {
+    showInputError('Could not reach the server. Make sure it is running on port 3000.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+analyzeBtn.addEventListener('click', analyze);
+document.getElementById('clear-btn').addEventListener('click', () => {
+  document.getElementById('code-input').value  = '';
+  document.getElementById('error-input').value = '';
+  document.getElementById('input-error').style.display = 'none';
+  document.getElementById('results-area').style.display = 'none';
+  state.currentResult = null;
+});
+
+// Allow Ctrl+Enter in the code textarea
+document.getElementById('code-input').addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') analyze();
+});
+
+function setLoading(on) {
+  analyzeBtn.disabled = on;
+  analyzeIcon.innerHTML = on ? '<span class="spinner"></span>' : '⚡';
+  analyzeText.textContent = on ? 'Analyzing…' : 'Analyze & Debug';
+}
+
+function showInputError(msg) {
+  const el = document.getElementById('input-error');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'flex';
+}
+
+// ─── Render Results ───────────────────────────────────────
+function renderResults(data) {
+  // Demo notice
+  const dn = document.getElementById('demo-notice');
+  dn.style.display = data.demo ? 'flex' : 'none';
+
+  // Diagnosis
+  document.getElementById('res-error-type').textContent = data.errorType || 'Error';
+  document.getElementById('res-explanation').textContent = data.plainExplanation || '';
+
+  // Faulty line
+  const fls = document.getElementById('faulty-line-section');
+  if (data.faultyLine && data.faultyLine.trim()) {
+    fls.style.display = 'block';
+    document.getElementById('faulty-line-lang').textContent = data.language;
+    document.getElementById('faulty-line-code').textContent = data.faultyLine;
+  } else {
+    fls.style.display = 'none';
+  }
+
+  // Before / After
+  document.getElementById('before-lang').textContent = data.language;
+  document.getElementById('after-lang').textContent  = data.language;
+  document.getElementById('before-code').textContent = data.code || '';
+  document.getElementById('after-code').textContent  = data.fixedCode || '';
+
+  // Teach Me
+  document.getElementById('res-concept-title').textContent       = data.conceptTitle || '';
+  document.getElementById('res-concept-explanation').textContent = data.conceptExplanation || '';
+
+  // Quiz
+  renderQuiz(data);
+
+  // Show
+  const ra = document.getElementById('results-area');
+  ra.style.display = 'block';
+  ra.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ─── Quiz ──────────────────────────────────────────────────
+function renderQuiz(data) {
+  state.quizAnswered = false;
+  document.getElementById('quiz-question-text').textContent = data.quizQuestion || '';
+  const list = document.getElementById('quiz-options-list');
+  const opts = data.quizOptions || [];
+  const keys = ['A', 'B', 'C', 'D'];
+  list.innerHTML = opts.map((opt, i) => `
+    <div class="quiz-option" id="qopt-${i}" onclick="selectQuizOption(${i})">
+      <div class="quiz-option-key">${keys[i] || i}</div>
+      <span>${escHtml(opt)}</span>
+    </div>
+  `).join('');
+  document.getElementById('quiz-feedback-text').style.display = 'none';
+  document.getElementById('quiz-retry-btn').style.display = 'none';
+  document.getElementById('quiz-next-btn').style.display  = 'none';
+}
+
+function resetQuiz() {
+  if (state.currentResult) renderQuiz(state.currentResult);
+}
+
+async function selectQuizOption(selectedIdx) {
+  if (state.quizAnswered) return;
+  state.quizAnswered = true;
+
+  const data       = state.currentResult;
+  const correctIdx = data.quizAnswer;
+  const isCorrect  = selectedIdx === correctIdx;
+
+  // Disable all options
+  document.querySelectorAll('.quiz-option').forEach(el => el.classList.add('disabled'));
+
+  // Mark selected
+  const selEl = document.getElementById('qopt-' + selectedIdx);
+  selEl.classList.add(isCorrect ? 'selected-correct' : 'selected-wrong');
+
+  // Reveal correct if wrong
+  if (!isCorrect) {
+    document.getElementById('qopt-' + correctIdx).classList.add('reveal-correct');
+  }
+
+  // Show loading feedback
+  const fbEl = document.getElementById('quiz-feedback-text');
+  fbEl.className = 'alert alert-info';
+  fbEl.textContent = 'Getting feedback…';
+  fbEl.style.display = 'block';
+
+  // Fetch feedback
+  let feedback;
+  try {
+    const resp = await fetch('/api/quiz-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        language: data.language,
+        conceptTitle: data.conceptTitle,
+        quizQuestion: data.quizQuestion,
+        quizOptions: data.quizOptions,
+        quizAnswer: correctIdx,
+        userAnswer: selectedIdx,
+      }),
+    });
+    const d = await resp.json();
+    feedback = d.feedback || (isCorrect ? 'Correct!' : 'Incorrect.');
+  } catch(e) {
+    feedback = isCorrect
+      ? `Correct! "${data.quizOptions[correctIdx]}" is the right answer.`
+      : `Incorrect. The right answer is "${data.quizOptions[correctIdx]}".`;
+  }
+
+  fbEl.className = isCorrect ? 'alert alert-success' : 'alert alert-error';
+  fbEl.textContent = (isCorrect ? '✓ ' : '✗ ') + feedback;
+
+  document.getElementById('quiz-retry-btn').style.display = 'inline-flex';
+  document.getElementById('quiz-next-btn').style.display  = 'inline-flex';
+
+  // Update stats
+  state.statsQuizzes++;
+  if (isCorrect) state.statsCorrect++;
+
+  // Update history record
+  const rec = state.history.find(h => h.timestamp === data.timestamp);
+  if (rec) {
+    rec.quizTaken   = true;
+    rec.quizCorrect = isCorrect;
+  }
+
+  updateHistoryBadge();
+  renderHistoryStats();
+}
+
+// ─── History ──────────────────────────────────────────────
+function addToHistory(data) {
+  state.history.unshift({ ...data });
+  state.statsAnalyzed++;
+  updateHistoryBadge();
+  renderHistoryStats();
+}
+
+function renderHistory() {
+  const list      = document.getElementById('history-list');
+  const empty     = document.getElementById('history-empty');
+  const clearRow  = document.getElementById('clear-history-row');
+  const items     = state.history;
+
+  if (items.length === 0) {
+    list.style.display    = 'none';
+    empty.style.display   = 'block';
+    clearRow.style.display = 'none';
+    return;
+  }
+  empty.style.display   = 'none';
+  list.style.display    = 'flex';
+  clearRow.style.display = 'block';
+
+  list.innerHTML = items.map((item, i) => {
+    const timeStr = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const quizBadge = item.quizTaken
+      ? `<span class="history-quiz-badge ${item.quizCorrect ? 'quiz-pass' : 'quiz-fail'}">${item.quizCorrect ? '✓ Quiz' : '✗ Quiz'}</span>`
+      : '';
+    return `
+      <div class="history-item" onclick="reloadHistory(${i})">
+        <div class="history-item-top">
+          <span class="history-lang">${item.language}</span>
+          <span class="history-time">${timeStr} ${quizBadge}</span>
+        </div>
+        <div class="history-error">⚠ ${escHtml(item.errorType || 'Error')}</div>
+        <div class="history-concept">📚 ${escHtml(item.conceptTitle || '')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function reloadHistory(idx) {
+  const item = state.history[idx];
+  if (!item) return;
+  state.currentResult = item;
+  navigate('debug');
+  document.getElementById('lang-select').value   = item.language;
+  document.getElementById('code-input').value    = item.code;
+  document.getElementById('error-input').value   = item.errorMsg;
+  renderResults(item);
+}
+
+function clearHistory() {
+  state.history = [];
+  state.statsAnalyzed = 0;
+  state.statsQuizzes  = 0;
+  state.statsCorrect  = 0;
+  updateHistoryBadge();
+  renderHistory();
+  renderHistoryStats();
+}
+
+function updateHistoryBadge() {
+  document.getElementById('history-badge').textContent = state.history.length;
+}
+
+function renderHistoryStats() {
+  document.getElementById('stat-analyzed').textContent = state.statsAnalyzed;
+  document.getElementById('stat-quizzes').textContent  = state.statsQuizzes;
+  document.getElementById('stat-correct').textContent  = state.statsCorrect;
+}
+
+// ─── Utilities ────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function copyCode(elemId) {
+  const el = document.getElementById(elemId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('Code copied!')).catch(() => {});
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.transform = 'translateY(0)';
+  t.style.opacity = '1';
+  setTimeout(() => {
+    t.style.transform = 'translateY(80px)';
+    t.style.opacity = '0';
+  }, 2200);
+}
+
+function scrollToTop() {
+  document.getElementById('main-content').scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
